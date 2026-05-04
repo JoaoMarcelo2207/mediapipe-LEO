@@ -1,2 +1,3 @@
-holistic_landmarks_video_file_results.csv
-holistic_capture_real_time.py
+__pycache__/
+*.mp4
+*.csv
