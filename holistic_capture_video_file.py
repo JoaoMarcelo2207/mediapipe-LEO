@@ -54,8 +54,8 @@ def main():
     parser.add_argument("--complexity", type=int, default=1, help="Complexidade do modelo: 0 (lite), 1 (normal) ou 2 (slow)")
     parser.add_argument("--min_det", type=float, default=0.5, help="Confiança mínima para detecção")
     parser.add_argument("--min_trk", type=float, default=0.5, help="Confiança mínima para rastreamento")
-    parser.add_argument("--width", type=int, default=640, help="Largura do vídeo para processamento")
-    parser.add_argument("--height", type=int, default=480, help="Altura do vídeo para processamento")
+    parser.add_argument("--width", type=int, default=None, help="Largura do vídeo para processamento(Se não informado usa original do video)")
+    parser.add_argument("--height", type=int, default=None, help="Altura do vídeo para processamento(Se não informado usa original do video)")
     parser.add_argument("--draw", action="store_true", help="Desenhar landmarks no vídeo")
 
     args = parser.parse_args()
@@ -75,7 +75,20 @@ def main():
     writer_thread.start()
 
     win_name = "Processando Vídeo..."
-    cv2.namedWindow(win_name, cv2.WINDOW_NORMAL)
+    if args.draw:
+        cv2.namedWindow(win_name, cv2.WINDOW_NORMAL)
+
+        orig_w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        orig_h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+        target_width = 800
+        if orig_w > target_width:
+            target_height = int(orig_h * (target_width / orig_w))
+        else:
+            target_width = int(orig_w)
+            target_height = int(orig_h)
+    
+        cv2.resizeWindow(win_name, target_width, target_height)
 
     with mp_holistic.Holistic(
         model_complexity=args.complexity,
@@ -89,6 +102,9 @@ def main():
             ret, frame = cap.read()
             if not ret: break # Fim do vídeo
 
+            if args.width is not None and args.height is not None:
+                frame = cv2.resize(frame, (args.width, args.height))
+            
             # Processamento
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = holistic.process(rgb)
@@ -120,9 +136,14 @@ def main():
                 if cv2.waitKey(1) & 0xFF == ord('q'): 
                     break
             else:
-                if frame_idx % 30 == 0:
-                    progress = (frame_idx / total_frames) * 100
-                    print(f"Processando: {progress:.1f}% concluído...", end="\r")
+                # Atualiza a barra de progresso a cada 5 frames
+                if frame_idx % 5 == 0 or frame_idx == total_frames - 1:
+                    percent = frame_idx / total_frames
+                    bar_length = 40
+                    filled = int(bar_length * percent)
+                    bar = '█' * filled + '-' * (bar_length - filled)
+                    # O flush=True garante que o terminal atualize a linha imediatamente
+                    print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx}/{total_frames})", end="", flush=True)
 
             frame_idx += 1
     
