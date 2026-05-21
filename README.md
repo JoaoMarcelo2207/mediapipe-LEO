@@ -21,7 +21,7 @@ conda update --all
 ```
 Crie um ambiente (aqui um ambiente chamado mediapipe_holistic_env será usado para instalar os pacotes)
 ```bash
-conda create --name mediapipe_holistic_env python=3.10 pip cmake ipython jupyter
+conda create --name mediapipe_holistic_env python=3.12.13 pip cmake ipython jupyter
 ```
 Ative o ambiente
 ```bash
@@ -29,11 +29,11 @@ conda activate mediapipe_holistic_env
 ```
 Instale os pacotes conda
 ```bash
-conda install -c conda-forge opencv=4.8
+conda install -c conda-forge opencv=4.10.0
 ```
 Instale os pacotes pip
 ```bash
-pip install mediapipe==0.10.0
+pip install mediapipe==0.10.14
 ```
 # Como utilizar
 Após instalar os pacotes mude para o diretório onde você clonou o repositorio
