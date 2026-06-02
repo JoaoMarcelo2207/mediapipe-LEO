@@ -6,6 +6,18 @@ import threading
 import mediapipe as mp
 from pathlib import Path
 
+# ─── Downsampling: 27 Landmarks do Artigo (FACS AUs) ───────────────────────────
+SELECTED_FACE_INDICES = [
+    61, 292,   # Cantos da boca
+    0, 17,     # Centro do lábio superior/inferior
+    50, 280,   # Bochechas (corrigido do typo do artigo)
+    48, 4, 289,# Ponta e laterais do nariz
+    206, 426,  # Mandíbula superior
+    133, 130, 159, 145, 362, 359, 386, 374, # Cantos e pálpebras dos olhos
+    122, 351,  # Ponte nasal
+    46, 105, 107, 276, 334, 336 # Sobrancelhas
+]
+
 # ─── MediaPipe setup ───────────────────────────────────────────────────────────
 mp_holistic = mp.solutions.holistic
 mp_drawing = mp.solutions.drawing_utils
@@ -24,19 +36,20 @@ def csv_writer_thread(csv_path: Path, header: list, row_queue: queue.Queue):
             writer.writerow(item)
 
 def build_csv_header() -> list:
-    header = ["frame", "timestamp_ms"] # Mudado para ms para precisão de vídeo
-    for i in range(468):
+    header = ["frame", "timestamp_ms"]
+    
+    # Adiciona apenas os 27 pontos faciais selecionados
+    for idx in SELECTED_FACE_INDICES:
         for ax in ("x", "y", "z"): 
-            header.append(f"face_{i}_{ax}")
+            header.append(f"face_{idx}_{ax}")
+            
+    # Mantém o resto do corpo (pose e mãos) inalterado
     for i in range(33):
-        for ax in ("x", "y", "z", "visibility"): 
-            header.append(f"pose_{i}_{ax}")
+        for ax in ("x", "y", "z", "visibility"): header.append(f"pose_{i}_{ax}")
     for i in range(21):
-        for ax in ("x", "y", "z"): 
-            header.append(f"left_hand_{i}_{ax}")
+        for ax in ("x", "y", "z"): header.append(f"left_hand_{i}_{ax}")
     for i in range(21):
-        for ax in ("x", "y", "z"): 
-            header.append(f"right_hand_{i}_{ax}")
+        for ax in ("x", "y", "z"): header.append(f"right_hand_{i}_{ax}")
     return header
 
 def extract_landmarks(results):
@@ -119,9 +132,14 @@ def main():
             if args.draw:
                 # Desenha a cada 2 frames para economizar CPU, mas processa TODOS
                 if frame_idx % 2 == 0: 
-                    mp_drawing.draw_landmarks(frame, results.face_landmarks, mp_holistic.FACEMESH_CONTOURS)
+                    if results.face_landmarks:
+                        h, w, c = frame.shape
+                        for idx in SELECTED_FACE_INDICES:
+                            lm = results.face_landmarks.landmark[idx]
+                            cx, cy = int(lm.x * w), int(lm.y * h)
+                            # Desenha pequenos círculos verdes nos 27 pontos
+                            cv2.circle(frame, (cx, cy), 2, (0, 255, 0), -1)
                     mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-
                     if results.left_hand_landmarks:
                         mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
                     if results.right_hand_landmarks:
