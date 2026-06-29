@@ -6,6 +6,18 @@ import threading
 import mediapipe as mp
 from pathlib import Path
 
+# ─── Downsampling: 27 Landmarks do Artigo (FACS AUs) ───────────────────────────
+SELECTED_FACE_INDICES = [
+    61, 292,   # Cantos da boca
+    0, 17,     # Centro do lábio superior/inferior
+    50, 280,   # Bochechas (corrigido do typo do artigo)
+    48, 4, 289,# Ponta e laterais do nariz
+    206, 426,  # Mandíbula superior
+    133, 130, 159, 145, 362, 359, 386, 374, # Cantos e pálpebras dos olhos
+    122, 351,  # Ponte nasal
+    46, 105, 107, 276, 334, 336 # Sobrancelhas
+]
+
 # ─── MediaPipe setup ───────────────────────────────────────────────────────────
 mp_holistic = mp.solutions.holistic
 mp_drawing = mp.solutions.drawing_utils
@@ -24,19 +36,20 @@ def csv_writer_thread(csv_path: Path, header: list, row_queue: queue.Queue):
             writer.writerow(item)
 
 def build_csv_header() -> list:
-    header = ["frame", "timestamp_ms"] # Mudado para ms para precisão de vídeo
-    for i in range(468):
+    header = ["frame", "timestamp_ms"]
+    
+    # Adiciona apenas os 27 pontos faciais selecionados
+    for idx in SELECTED_FACE_INDICES:
         for ax in ("x", "y", "z"): 
-            header.append(f"face_{i}_{ax}")
+            header.append(f"face_{idx}_{ax}")
+            
+    # Mantém o resto do corpo (pose e mãos) inalterado
     for i in range(33):
-        for ax in ("x", "y", "z", "visibility"): 
-            header.append(f"pose_{i}_{ax}")
+        for ax in ("x", "y", "z", "visibility"): header.append(f"pose_{i}_{ax}")
     for i in range(21):
-        for ax in ("x", "y", "z"): 
-            header.append(f"left_hand_{i}_{ax}")
+        for ax in ("x", "y", "z"): header.append(f"left_hand_{i}_{ax}")
     for i in range(21):
-        for ax in ("x", "y", "z"): 
-            header.append(f"right_hand_{i}_{ax}")
+        for ax in ("x", "y", "z"): header.append(f"right_hand_{i}_{ax}")
     return header
 
 def extract_landmarks(results):
@@ -54,8 +67,8 @@ def main():
     parser.add_argument("--complexity", type=int, default=1, help="Complexidade do modelo: 0 (lite), 1 (normal) ou 2 (slow)")
     parser.add_argument("--min_det", type=float, default=0.5, help="Confiança mínima para detecção")
     parser.add_argument("--min_trk", type=float, default=0.5, help="Confiança mínima para rastreamento")
-    parser.add_argument("--width", type=int, default=640, help="Largura do vídeo para processamento")
-    parser.add_argument("--height", type=int, default=480, help="Altura do vídeo para processamento")
+    parser.add_argument("--width", type=int, default=None, help="Largura do vídeo para processamento(Se não informado usa original do video)")
+    parser.add_argument("--height", type=int, default=None, help="Altura do vídeo para processamento(Se não informado usa original do video)")
     parser.add_argument("--draw", action="store_true", help="Desenhar landmarks no vídeo")
 
     args = parser.parse_args()
@@ -75,7 +88,20 @@ def main():
     writer_thread.start()
 
     win_name = "Processando Vídeo..."
-    cv2.namedWindow(win_name, cv2.WINDOW_NORMAL)
+    if args.draw:
+        cv2.namedWindow(win_name, cv2.WINDOW_NORMAL)
+
+        orig_w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+        orig_h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+
+        target_width = 800
+        if orig_w > target_width:
+            target_height = int(orig_h * (target_width / orig_w))
+        else:
+            target_width = int(orig_w)
+            target_height = int(orig_h)
+    
+        cv2.resizeWindow(win_name, target_width, target_height)
 
     with mp_holistic.Holistic(
         model_complexity=args.complexity,
@@ -89,6 +115,9 @@ def main():
             ret, frame = cap.read()
             if not ret: break # Fim do vídeo
 
+            if args.width is not None and args.height is not None:
+                frame = cv2.resize(frame, (args.width, args.height))
+            
             # Processamento
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             results = holistic.process(rgb)
@@ -103,9 +132,14 @@ def main():
             if args.draw:
                 # Desenha a cada 2 frames para economizar CPU, mas processa TODOS
                 if frame_idx % 2 == 0: 
-                    mp_drawing.draw_landmarks(frame, results.face_landmarks, mp_holistic.FACEMESH_CONTOURS)
+                    if results.face_landmarks:
+                        h, w, c = frame.shape
+                        for idx in SELECTED_FACE_INDICES:
+                            lm = results.face_landmarks.landmark[idx]
+                            cx, cy = int(lm.x * w), int(lm.y * h)
+                            # Desenha pequenos círculos verdes nos 27 pontos
+                            cv2.circle(frame, (cx, cy), 2, (0, 255, 0), -1)
                     mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-
                     if results.left_hand_landmarks:
                         mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
                     if results.right_hand_landmarks:
@@ -120,9 +154,14 @@ def main():
                 if cv2.waitKey(1) & 0xFF == ord('q'): 
                     break
             else:
-                if frame_idx % 30 == 0:
-                    progress = (frame_idx / total_frames) * 100
-                    print(f"Processando: {progress:.1f}% concluído...", end="\r")
+                # Atualiza a barra de progresso a cada 5 frames
+                if frame_idx % 5 == 0 or frame_idx == total_frames - 1:
+                    percent = frame_idx / total_frames
+                    bar_length = 40
+                    filled = int(bar_length * percent)
+                    bar = '█' * filled + '-' * (bar_length - filled)
+                    # O flush=True garante que o terminal atualize a linha imediatamente
+                    print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx}/{total_frames})", end="", flush=True)
 
             frame_idx += 1
     
