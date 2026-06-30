@@ -19,38 +19,85 @@ Atualize os pacotes conda
 ```bash
 conda update --all
 ```
-Crie um ambiente (aqui um ambiente chamado mediapipe_holistic_env será usado para instalar os pacotes)
+Crie um ambiente (aqui um ambiente chamado mediapipe_env será usado para instalar os pacotes mediapipe e parselmouth)
 ```bash
-conda create --name mediapipe_holistic_env python=3.12.13 pip cmake ipython jupyter
+conda create --name mediapipe_env python=3.12.13 pip cmake ipython
 ```
 Ative o ambiente
 ```bash
-conda activate mediapipe_holistic_env
+conda activate mediapipe_env
 ```
 Instale os pacotes conda
 ```bash
-conda install -c conda-forge opencv=4.10.0
+conda install -c conda-forge opencv=4.10.0 -y
 ```
 Instale os pacotes pip
 ```bash
 pip install mediapipe==0.10.14
 ```
+```bash
+pip install praat-parselmouth
+```
+## Criando o segundo ambiente
+Desative o primeiro ambiente
+```bash
+conda deactivate
+```
+Crie o segundo ambiente (aqui um ambiente chamado whisperx_env será usado para instalar os pacotes whisperx)
+```bash
+conda create --name whisperx_env python=3.12.13 pip cmake ipython
+```
+Ative o ambiente
+```bash
+conda activate whisperx_env
+```
+Instale os pacotes conda
+```bash
+conda install -c conda-forge ffmpeg -y
+```
+Instale os pacotes pip
+```bash
+pip install whisperx
+```
+
 # Como utilizar
-Após instalar os pacotes mude para o diretório onde você clonou o repositorio
+Após instalar os pacotes, *primeiramente* comece pelo ambiente do mediapipe
+Ative o ambiente
+```bash
+conda activate mediapipe_env
+```
+Mude para o diretório onde você clonou o repositorio
 ```bash
 cd diretorio_do_repositorio
 ```
-Execute e passe o diretorio do video como argumento (o ambiente deve estar ativo)
+Execute o primeiro script e passe o diretorio do video como argumento
 se o video estiver na mesma pasta que o arquivo .py, apenas passe o nome_do_arquivo_do_video.mp4
 ```bash
-python holistic_landmarks_video_file.py --input nome_do_arquivo_do_video.mp4
+python multimodal_extractor_1.py --input nome_do_arquivo_do_video.mp4
 ```
+
+Agora, mude para o segundo ambiente, desativando o primeiro
+```bash
+conda deactivate
+```
+Ative o segundo ambiente
+```bash
+conda activate whisperx_env
+```
+Execute o segundo script e passe o diretorio do video como argumento
+```bash
+python multimodal_extractor_2.py --input nome_do_arquivo_do_video.mp4
+```
+
+*Atenção, após criar o ambiente não é necessario criar denovo para utilizar! Basta ativar ele.*
+
 ### Argumentos Disponíveis
 Possiveis configurações na hora de executar.
 - A complexidade aumenta a precisão, entretanto tambem aumenta o tempo de processamento.
 - Ajustar a confiança apenas em caso de falhas de detectação
 - Diminuir a altura e largura caso esteja muito lento o processamento (existe risco de perda de precisão)
 
+Primeiro Script:
 | Argumento | Tipo | Padrão | Descrição |
 | :--- | :--- | :--- | :--- |
 | `--input` | `str` | *(Obrigatório)* | Caminho para o arquivo de vídeo que será processado. |
@@ -63,6 +110,9 @@ Possiveis configurações na hora de executar.
 | `--draw` | `flag` | `False` | Se presente, abre uma janela mostrando o vídeo com os landmarks desenhados em tempo real. |
 | `--help` | `flag` | `False` | Retorna esta tabela no terminal. |
 
-
-
-
+Segundo Script:
+| Argumento | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `--input` | `str` | *(Obrigatório)* | Caminho para o arquivo de vídeo que será processado. |
+| `--complexity` | `str` | `small` | Tamanho do modelo WhisperX: base, small, medium, large-v2 |
+| `--lang` | `str` | `pt` | Idioma do áudio (ex: pt, en) |

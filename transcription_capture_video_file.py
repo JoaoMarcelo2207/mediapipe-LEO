@@ -3,7 +3,7 @@ import whisperx
 import torch
 from pathlib import Path
 
-def extrair_texto(input_video, output_json, model_size="large-v2", lang="pt"):
+def extrair_texto(input_video, output_json, model_size="small", lang="pt"):
     
     input_path = Path(input_video)
     if not input_path.exists():
