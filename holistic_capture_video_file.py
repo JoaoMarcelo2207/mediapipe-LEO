@@ -91,73 +91,75 @@ def extract_holistic_landmarks(input_path, output_path, complexity=1, min_det=0.
             target_height = int(orig_h)
     
         cv2.resizeWindow(win_name, target_width, target_height)
+    
 
-    with mp_holistic.Holistic(
-        model_complexity=complexity,
-        min_detection_confidence=min_det,
-        min_tracking_confidence=min_trk,
-        refine_face_landmarks=False
-    ) as holistic:
-        
-        frame_idx = 0
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret: break # Fim do vídeo
-
-            if width is not None and height is not None:
-                frame = cv2.resize(frame, (width, height))
+    try:
+        with mp_holistic.Holistic(
+            model_complexity=complexity,
+            min_detection_confidence=min_det,
+            min_tracking_confidence=min_trk,
+            refine_face_landmarks=False
+        ) as holistic:
             
-            # Processamento
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = holistic.process(rgb)
+            frame_idx = 0
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret: break # Fim do vídeo
 
-            # Timestamp baseado no frame rate do vídeo (mais preciso que relógio do sistema)
-            timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+                if width is not None and height is not None:
+                    frame = cv2.resize(frame, (width, height))
+                
+                # Processamento
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = holistic.process(rgb)
 
-            # Salvar dados (sem put_nowait para garantir que não perca nenhum frame)
-            row = [frame_idx, round(timestamp_ms, 2)] + extract_landmarks(results)
-            row_queue.put(row)
+                # Timestamp baseado no frame rate do vídeo (mais preciso que relógio do sistema)
+                timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
 
-            if draw:
-                # Desenha a cada 2 frames para economizar CPU, mas processa TODOS
-                if frame_idx % 2 == 0: 
-                    if results.face_landmarks:
-                        h, w, c = frame.shape
-                        for idx in SELECTED_FACE_INDICES:
-                            lm = results.face_landmarks.landmark[idx]
-                            cx, cy = int(lm.x * w), int(lm.y * h)
-                            # Desenha pequenos círculos verdes nos 27 pontos
-                            cv2.circle(frame, (cx, cy), 2, (0, 255, 0), -1)
-                    mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-                    if results.left_hand_landmarks:
-                        mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-                    if results.right_hand_landmarks:
-                        mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-                    
-                    progress = (frame_idx / total_frames) * 100
-                    cv2.putText(frame, f"Progresso: {progress:.1f}%", (10, 30), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-                    cv2.imshow(win_name, frame)
+                # Salvar dados (sem put_nowait para garantir que não perca nenhum frame)
+                row = [frame_idx, round(timestamp_ms, 2)] + extract_landmarks(results)
+                row_queue.put(row)
+
+                if draw:
+                    # Desenha a cada 2 frames para economizar CPU, mas processa TODOS
+                    if frame_idx % 2 == 0: 
+                        if results.face_landmarks:
+                            h, w, c = frame.shape
+                            for idx in SELECTED_FACE_INDICES:
+                                lm = results.face_landmarks.landmark[idx]
+                                cx, cy = int(lm.x * w), int(lm.y * h)
+                                # Desenha pequenos círculos verdes nos 27 pontos
+                                cv2.circle(frame, (cx, cy), 2, (0, 255, 0), -1)
+                        mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
+                        if results.left_hand_landmarks:
+                            mp_drawing.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+                        if results.right_hand_landmarks:
+                            mp_drawing.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
+                        
+                        progress = (frame_idx / total_frames) * 100
+                        cv2.putText(frame, f"Progresso: {progress:.1f}%", (10, 30), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                        cv2.imshow(win_name, frame)
+            
+                    # O waitKey precisa estar dentro ou logo após o imshow para a janela funcionar
+                    if cv2.waitKey(1) & 0xFF == ord('q'): 
+                        break
+                else:
+                    # Atualiza a barra de progresso a cada 5 frames
+                    if frame_idx % 5 == 0 or frame_idx == total_frames - 1:
+                        percent = frame_idx / total_frames
+                        bar_length = 40
+                        filled = int(bar_length * percent)
+                        bar = '█' * filled + '-' * (bar_length - filled)
+                        # O flush=True garante que o terminal atualize a linha imediatamente
+                        print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx}/{total_frames})", end="", flush=True)
+
+                frame_idx += 1
         
-                # O waitKey precisa estar dentro ou logo após o imshow para a janela funcionar
-                if cv2.waitKey(1) & 0xFF == ord('q'): 
-                    break
-            else:
-                # Atualiza a barra de progresso a cada 5 frames
-                if frame_idx % 5 == 0 or frame_idx == total_frames - 1:
-                    percent = frame_idx / total_frames
-                    bar_length = 40
-                    filled = int(bar_length * percent)
-                    bar = '█' * filled + '-' * (bar_length - filled)
-                    # O flush=True garante que o terminal atualize a linha imediatamente
-                    print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx}/{total_frames})", end="", flush=True)
-
-            frame_idx += 1
-    
-
-    cap.release()
-    cv2.destroyAllWindows()
-    
-    row_queue.put(_STOP)
-    writer_thread.join()
-    print(f"\n[OK] Processamento concluído: {frame_idx} frames salvos em {output_path}")
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        
+        row_queue.put(_STOP)
+        writer_thread.join()
+        print(f"\n[OK] Processamento concluído: {frame_idx} frames salvos em {output_path}")
