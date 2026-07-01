@@ -1,6 +1,7 @@
 import pandas as pd
 import json
 import numpy as np
+import argparse
 
 def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="dataset_multimodal.csv"):
     print("1. Carregando os dados brutos...")
@@ -70,3 +71,35 @@ def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="dataset_
 
     df_final.to_csv(saida_csv, index=False)
     print("Concluído!")
+
+
+def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-cache", action="store_true", default=False, help="Deleta os arquivos intermediarios após a execução")
+
+    args = parser.parse_args()
+
+    print("[INFO] Execultando integração multimodal...")
+    try:
+        join_multimodal_data(arq_visao="dados_visao.csv", arq_acustica="dados_acustica.csv", arq_texto="dados_texto.json")
+    except Exception as e:
+        print(f"[ERROR] Erro ao integrar dados multimodais: {e}")
+    else:
+        print("[INFO] Integração multimodal concluída com sucesso.")
+        if(args.no_cache):
+            import os
+            try:
+                if os.path.exists("dados_visao.csv"):
+                    os.remove("dados_visao.csv")
+                if os.path.exists("dados_acustica.csv"):
+                    os.remove("dados_acustica.csv")
+                if os.path.exists("dados_texto.json"):
+                    os.remove("dados_texto.json")
+                print("[INFO] Arquivos temporários removidos com sucesso.")
+            except Exception as e:
+                print(f"[ERROR] Falha ao remover arquivos temporários: {e}")
+
+
+if __name__ == "__main__":
+    main()

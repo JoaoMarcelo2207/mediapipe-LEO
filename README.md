@@ -14,6 +14,10 @@ Abra um terminal miniconda
 
 Com o terminal aberto siga as instruções abaixo
 
+## Se o FFMPEG não estiver instalado, instale pelo comando abaixo:
+```bash
+python ffmpeg_install.py
+```
 ## Instalando pacotes Conda
 Atualize os pacotes conda
 ```bash
@@ -88,6 +92,10 @@ Execute o segundo script e passe o diretorio do video como argumento
 ```bash
 python multimodal_extractor_2.py --input nome_do_arquivo_do_video.mp4
 ```
+Por fim, execute o script para juntar tudo em um CSV único:
+```bash
+python joiner.py
+```
 
 *Atenção, após criar o ambiente não é necessario criar denovo para utilizar! Basta ativar ele.*
 
@@ -116,3 +124,8 @@ Segundo Script:
 | `--input` | `str` | *(Obrigatório)* | Caminho para o arquivo de vídeo que será processado. |
 | `--complexity` | `str` | `small` | Tamanho do modelo WhisperX: base, small, medium, large-v2 |
 | `--lang` | `str` | `pt` | Idioma do áudio (ex: pt, en) |
+
+Terceiro Script:
+| Argumento | Tipo | Padrão | Descrição |
+| :--- | :--- | :--- | :--- |
+| `--no-cache` | `flag` | *False* | Deleta os arquivos intermediarios após a execução|
