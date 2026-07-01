@@ -1,47 +1,72 @@
 import pandas as pd
+import json
+import numpy as np
 
 def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="dataset_multimodal.csv"):
+    print("1. Carregando os dados brutos...")
     
-    print("1. Carregando os três arquivos...")
     try:
-        df_visao = pd.read_csv(arq_visao)       # Seu CSV gigante do MediaPipe
-        df_acustica = pd.read_csv(arq_acustica) # Seu CSV do Parselmouth
-        df_texto = pd.read_json(arq_texto)      # Seu JSON do WhisperX
+        df_visao = pd.read_csv(arq_visao, index_col=False)
+        df_acustica = pd.read_csv(arq_acustica, index_col=False)
+
+        df_visao['timestamp_ms'] = df_visao['timestamp_ms'].astype(float)
+        df_acustica['timestamp_ms'] = df_acustica['timestamp_ms'].astype(float)
+
+        df_visao = df_visao.sort_values('timestamp_ms')
+        df_acustica = df_acustica.sort_values('timestamp_ms')
     except Exception as e:
-        print(f"Erro ao carregar os arquivos: {e}")
+        print(f"[ERRO FATAL] O Pandas falhou na leitura: {e}")
         return
 
-    # Para juntar dados de tempo, o Pandas exige que as tabelas estejam em ordem crescente
-    df_visao = df_visao.sort_values('timestamp_ms')
-    df_acustica = df_acustica.sort_values('timestamp_ms')
-
     print("2. Juntando Vídeo e Áudio...")
-    # O "merge_asof" é a ferramenta que junta as coisas pelo tempo "mais próximo".
-    # Ele pega a linha do MediaPipe e cola nela o áudio do exato milissegundo correspondente.
     df_final = pd.merge_asof(
         df_visao, 
         df_acustica, 
         on='timestamp_ms', 
         direction='nearest'
     )
+    df_final = df_final.copy()
 
-    print("3. Colocando as palavras no tempo certo...")
-    # Cria uma coluna vazia chamada 'palavra'
-    df_final['palavra'] = "" 
+    print("3. Inserindo as palavras do WhisperX...")
+    df_final['palavra'] = "SILENCIO" 
     
-    # Preenche a palavra nos frames em que ela foi falada
-    for _, row in df_texto.iterrows():
-        palavra = row['word']
-        inicio_ms = row['start'] * 1000
-        fim_ms = row['end'] * 1000
-        
-        # Filtra os frames que aconteceram dentro do tempo da palavra
-        mascara_tempo = (df_final['timestamp_ms'] >= inicio_ms) & (df_final['timestamp_ms'] <= fim_ms)
-        df_final.loc[mascara_tempo, 'palavra'] = palavra
+    try:
+        with open(arq_texto, 'r', encoding='utf-8') as f:
+            dados_texto = json.load(f)
 
-    print("4. Salvando o arquivo final...")
-    # Troca possíveis erros de cálculo nulos por 0.0 para não sujar sua tabela
-    df_final = df_final.fillna(0.0) 
-    
+        lista_palavras = []
+        if isinstance(dados_texto, list):
+            for item in dados_texto:
+                if 'words' in item:  
+                    lista_palavras.extend(item['words'])
+                elif 'word' in item: 
+                    lista_palavras.append(item)
+        elif isinstance(dados_texto, dict):
+            lista_palavras = dados_texto.get('word_segments', [])
+            if not lista_palavras and 'segments' in dados_texto:
+                for seg in dados_texto['segments']:
+                    if 'words' in seg:
+                        lista_palavras.extend(seg['words'])
+
+        inseridas = 0
+        for p in lista_palavras:
+            if 'start' in p and 'end' in p:
+                inicio_ms = p['start'] * 1000
+                fim_ms = p['end'] * 1000
+                
+                mascara = (df_final['timestamp_ms'] >= inicio_ms) & (df_final['timestamp_ms'] <= fim_ms)
+                if mascara.any():
+                    df_final.loc[mascara, 'palavra'] = p['word']
+                    inseridas += 1
+
+        print(f"-> Palavras encaixadas no CSV com sucesso: {inseridas}")
+
+    except Exception as e:
+        print(f"[ERRO] Falha ao processar o JSON: {e}")
+
+    print("4. Salvando dataset final...")
+    cols_numericas = df_final.select_dtypes(include=[np.number]).columns
+    df_final[cols_numericas] = df_final[cols_numericas].fillna(0.0)
+
     df_final.to_csv(saida_csv, index=False)
-    print(f"Sucesso! Dataset criado com {len(df_final.columns)} colunas.")
+    print("Concluído!")
