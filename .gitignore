@@ -1,4 +1,15 @@
 __pycache__/
-*.mp4
-*.csv
 *.exe
+
+# Dados gerados
+data/*.csv
+data/*.json
+!data/.gitkeep
+
+# Videos
+videos/*.mp4
+!videos/.gitkeep
+
+# Arquivos temporários
+*.wav
+*.zip

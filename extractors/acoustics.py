@@ -1,6 +1,5 @@
 import os
 import csv
-import argparse
 import tempfile
 import subprocess
 import numpy as np

@@ -1,7 +1,6 @@
 import cv2
 import csv
 import queue
-import argparse
 import threading
 import mediapipe as mp
 from pathlib import Path

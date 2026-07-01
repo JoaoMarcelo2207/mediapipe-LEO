@@ -1,9 +1,10 @@
-import pandas as pd
+﻿import os
 import json
 import numpy as np
-import argparse
+import pandas as pd
 
-def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="dataset_multimodal.csv"):
+
+def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="data/dataset_multimodal.csv"):
     print("1. Carregando os dados brutos...")
     
     try:
@@ -19,7 +20,7 @@ def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="dataset_
         print(f"[ERRO FATAL] O Pandas falhou na leitura: {e}")
         return
 
-    print("2. Juntando Vídeo e Áudio...")
+    print("2. Juntando Video e Audio...")
     df_final = pd.merge_asof(
         df_visao, 
         df_acustica, 
@@ -70,36 +71,12 @@ def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="dataset_
     df_final[cols_numericas] = df_final[cols_numericas].fillna(0.0)
 
     df_final.to_csv(saida_csv, index=False)
-    print("Concluído!")
+    print("Concluido!")
 
 
-def main():
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--no-cache", action="store_true", default=False, help="Deleta os arquivos intermediarios após a execução")
-
-    args = parser.parse_args()
-
-    print("[INFO] Execultando integração multimodal...")
-    try:
-        join_multimodal_data(arq_visao="dados_visao.csv", arq_acustica="dados_acustica.csv", arq_texto="dados_texto.json")
-    except Exception as e:
-        print(f"[ERROR] Erro ao integrar dados multimodais: {e}")
-    else:
-        print("[INFO] Integração multimodal concluída com sucesso.")
-        if(args.no_cache):
-            import os
-            try:
-                if os.path.exists("dados_visao.csv"):
-                    os.remove("dados_visao.csv")
-                if os.path.exists("dados_acustica.csv"):
-                    os.remove("dados_acustica.csv")
-                if os.path.exists("dados_texto.json"):
-                    os.remove("dados_texto.json")
-                print("[INFO] Arquivos temporários removidos com sucesso.")
-            except Exception as e:
-                print(f"[ERROR] Falha ao remover arquivos temporários: {e}")
-
-
-if __name__ == "__main__":
-    main()
+def cleanup_intermediate_files():
+    """Remove os arquivos intermediarios gerados pelos extractors."""
+    for arquivo in ["data/dados_visao.csv", "data/dados_acustica.csv", "data/dados_texto.json"]:
+        if os.path.exists(arquivo):
+            os.remove(arquivo)
+    print("[INFO] Arquivos temporarios removidos com sucesso.")
