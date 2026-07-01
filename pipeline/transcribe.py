@@ -10,7 +10,7 @@ from extractors.transcription import extrair_texto
 def main():
     parser = argparse.ArgumentParser(description="Extrai transcricao de texto alinhada por palavra (WhisperX) de um video.")
     parser.add_argument("--input", type=str, required=True, help="Caminho do video MP4")
-    parser.add_argument("--model", type=str, default="small", help="Tamanho do modelo Whisper (ex: base, small, medium, large-v2)")
+    parser.add_argument("--model", type=str, default="large-v2", help="Tamanho do modelo Whisper (ex: base, small, medium, large-v2)")
     parser.add_argument("--lang", type=str, default="pt", help="Idioma do audio (ex: pt, en)")
 
     args = parser.parse_args()

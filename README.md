@@ -40,13 +40,34 @@ Abra um terminal Anaconda (pressione a tecla Windows, digite `anaconda` e aperte
 
 ### 2. Crie os dois ambientes automaticamente
 
-Em vez de rodar `conda create`/`conda install` manualmente para cada ambiente, use o script abaixo. Ele cria `mediapipe_env` e `whisperx_env` a partir dos arquivos `.yml`, baixa o FFmpeg standalone, e **pula ambientes que ja existem** (seguro rodar de novo):
+Primeiramente, atualize o conda
+```bash
+conda update --all
+```
+
+Agora, Em vez de rodar `conda create`/`conda install` manualmente para cada ambiente, use o script abaixo. Ele cria `mediapipe_env` e `whisperx_env` a partir dos arquivos `.yml`, baixa o FFmpeg standalone, e **pula ambientes que ja existem** (seguro rodar de novo):
 
 ```bash
 python scripts/setup_environments.py
 ```
 
 Isso substitui todos os comandos manuais de `conda create`, `conda activate`, `conda install` e `pip install` que antes eram necessarios para montar os dois ambientes.
+
+Caso deseje utilizar aceleração da gpu no modo CUDA execute após a instalação dos ambientes:
+
+```bash
+conda activate whisperx_env
+pip uninstall torch torchvision torchaudio -y
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+conda deactivate
+```
+
+Caso tneha qualquer problema e deseja deletar o ambiente execute:
+
+```bash
+conda env remove -n whisperx_env
+conda env remove -n mediapipe_env
+```
 
 ## Como utilizar
 
@@ -132,7 +153,7 @@ python run_pipeline.py --input videos/video.mp4 \
 | Argumento | Tipo | Padrao | Descricao |
 | :--- | :--- | :--- | :--- |
 | `--input` | `str` | *(Obrigatorio)* | Caminho para o arquivo de video |
-| `--model` | `str` | `small` | Tamanho do modelo WhisperX |
+| `--model` | `str` | `large-v2` | Tamanho do modelo WhisperX |
 | `--lang` | `str` | `pt` | Idioma do audio |
 
 **pipeline/merge.py** (Merge):

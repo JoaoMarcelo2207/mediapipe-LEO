@@ -146,12 +146,12 @@ def extract_holistic_landmarks(input_path, output_path, complexity=1, min_det=0.
                 else:
                     # Atualiza a barra de progresso a cada 5 frames
                     if frame_idx % 5 == 0 or frame_idx == total_frames - 1:
-                        percent = frame_idx / total_frames
+                        percent = min((frame_idx + 1) / total_frames, 1.0)
                         bar_length = 40
                         filled = int(bar_length * percent)
                         bar = '█' * filled + '-' * (bar_length - filled)
                         # O flush=True garante que o terminal atualize a linha imediatamente
-                        print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx}/{total_frames})", end="", flush=True)
+                        print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx + 1}/{total_frames})", end="", flush=True)
 
                 frame_idx += 1
         
