@@ -1,0 +1,17 @@
+.git/
+__pycache__/
+*.exe
+*.zip
+*.wav
+
+# Não copiar dados gerados (serão montados como volume)
+data/*.csv
+data/*.json
+videos/*.mp4
+
+# Outros
+.gitignore
+.dockerignore
+README.md
+scripts/
+environments/environment_*.yml

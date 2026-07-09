@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────────────
+# Dockerfile: whisperx_env  (transcrição de texto)
+# Build:  docker build -f environments/Dockerfile.whisperx -t mediapipe-leo-wx .
+# ─────────────────────────────────────────────────────────────────────
+FROM python:3.12-slim
+
+# Dependências de sistema: ffmpeg (WhisperX precisa para decodificar áudio)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ffmpeg \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Instala PyTorch CPU-only primeiro (menor e mais rápido)
+RUN pip install --no-cache-dir \
+        torch \
+        torchaudio \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# Instala WhisperX
+COPY environments/requirements_whisperx.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia o código-fonte do projeto
+COPY extractors/ extractors/
+COPY pipeline/ pipeline/
+COPY data/ data/
+COPY videos/ videos/
+
+# Entrypoint genérico: recebe o script e argumentos via CMD
+ENTRYPOINT ["python"]

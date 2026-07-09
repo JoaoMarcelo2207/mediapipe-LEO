@@ -2,7 +2,7 @@
 
 Este repositorio apresenta um prototipo para analise de linguagem nao-verbal utilizando a framework MediaPipe Holistic. O sistema processa um arquivo de video para extrair coordenadas globais de pontos de referencia (landmarks) do corpo, maos e face, dados acusticos (pitch e intensidade) e transcricao de texto alinhada por palavra, exportando os dados estruturados em arquivos CSV/JSON.
 
->  **Nota tecnica:** o projeto usa dois ambientes conda separados porque `mediapipe` e `whisperx` tem requisitos de dependencias incompativeis entre si.
+>  **Nota tecnica:** o projeto usa dois ambientes separados porque `mediapipe` e `whisperx` tem requisitos de dependencias incompativeis entre si. Isso vale tanto para o modo Anaconda (dois ambientes conda) quanto para o modo Docker (duas imagens separadas).
 
 ## Estrutura do Projeto
 
@@ -19,26 +19,41 @@ mediapipe-LEO/
 |   +-- transcribe.py              # CLI: extracao de texto (WhisperX)
 |   +-- merge.py                   # CLI: merge dos dados em dataset final
 |
++-- environments/                  # Configuracao de ambientes
+|   +-- environment_mediapipe.yml  # Definicao do ambiente conda mediapipe_env
+|   +-- environment_whisperx.yml   # Definicao do ambiente conda whisperx_env
+|   +-- Dockerfile.mediapipe       # Imagem Docker para mediapipe
+|   +-- Dockerfile.whisperx        # Imagem Docker para whisperx
+|   +-- requirements_mediapipe.txt # Dependencias pip para Docker (mediapipe)
+|   +-- requirements_whisperx.txt  # Dependencias pip para Docker (whisperx)
+|
 +-- data/                          # Dados gerados (saida)
 +-- videos/                        # Videos de entrada
-+-- scripts/                       # Scripts e configuracao
++-- scripts/                       # Scripts utilitarios
 |   +-- ffmpeg_install.py          # Instalacao do FFmpeg standalone
 |   +-- setup_environments.py      # Cria os ambientes conda automaticamente
-|   +-- environment_mediapipe.yml  # Definicao do ambiente mediapipe_env
-|   +-- environment_whisperx.yml   # Definicao do ambiente whisperx_env
-+-- run_pipeline.py                # Roda o pipeline inteiro com um comando
+|   +-- run_docker.py              # Roda o pipeline via Docker
++-- run_pipeline.py                # Roda o pipeline inteiro via Anaconda
 +-- README.md
 ```
 
+---
+
 ## Como instalar
 
-### 1. Instale o Miniconda
+Escolha **uma** das opcoes abaixo:
+
+---
+
+### Opcao 1: Anaconda (recomendado para Windows)
+
+#### 1. Instale o Miniconda
 
 - [Link de Download](https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe)
 
 Abra um terminal Anaconda (pressione a tecla Windows, digite `anaconda` e aperte `enter`).
 
-### 2. Crie os dois ambientes automaticamente
+#### 2. Crie os dois ambientes automaticamente
 
 Primeiramente, atualize o conda
 ```bash
@@ -53,7 +68,7 @@ python scripts/setup_environments.py
 
 Isso substitui todos os comandos manuais de `conda create`, `conda activate`, `conda install` e `pip install` que antes eram necessarios para montar os dois ambientes.
 
-Caso deseje utilizar aceleração da gpu no modo CUDA execute após a instalação dos ambientes:
+Caso deseje utilizar aceleracao da gpu no modo CUDA execute apos a instalacao dos ambientes:
 
 ```bash
 conda activate whisperx_env
@@ -62,18 +77,46 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 conda deactivate
 ```
 
-Caso tneha qualquer problema e deseja deletar o ambiente execute:
+Caso tenha qualquer problema e deseja deletar o ambiente execute:
 
 ```bash
 conda env remove -n whisperx_env
 conda env remove -n mediapipe_env
 ```
 
+---
+
+### Opcao 2: Docker
+
+#### Pre-requisitos
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e rodando
+- (Opcional) [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) para aceleracao GPU
+
+#### Construir as imagens
+
+As imagens sao construidas **automaticamente** na primeira execucao do `run_docker.py`. Se preferir construir manualmente:
+
+```bash
+docker build -f environments/Dockerfile.mediapipe -t mediapipe-leo-mp .
+docker build -f environments/Dockerfile.whisperx  -t mediapipe-leo-wx .
+```
+
+Para **reconstruir** as imagens (ex: apos atualizar dependencias):
+
+```bash
+python scripts/run_docker.py --input videos/video.mp4 --rebuild
+```
+
+> **Nota:** a flag `--draw` (visualizacao com janela grafica) nao esta disponivel no modo Docker.
+
+---
+
 ## Como utilizar
 
 Coloque seus videos na pasta `videos/`. Os dados gerados serao salvos na pasta `data/`.
 
-### Modo automatico (recomendado)
+### Modo automatico - Anaconda (recomendado)
 
 Rode o pipeline inteiro com **um unico comando**, sem precisar ativar/desativar ambientes manualmente:
 
@@ -86,7 +129,25 @@ O script `run_pipeline.py` internamente:
 2. Roda `pipeline/transcribe.py` dentro de `whisperx_env` (transcricao de texto)
 3. Roda `pipeline/merge.py` dentro de `mediapipe_env` (gera o CSV final)
 
-### Modo manual (passo a passo)
+### Modo automatico - Docker
+
+```bash
+python scripts/run_docker.py --input videos/nome_do_video.mp4
+```
+
+Com GPU (para acelerar a transcricao WhisperX):
+
+```bash
+python scripts/run_docker.py --input videos/nome_do_video.mp4 --gpu
+```
+
+O script `run_docker.py` internamente:
+1. Verifica se as imagens Docker existem (constroi automaticamente se nao existirem)
+2. Roda `pipeline/extract.py` na imagem `mediapipe-leo-mp` (visao + acustica)
+3. Roda `pipeline/transcribe.py` na imagem `mediapipe-leo-wx` (transcricao de texto)
+4. Roda `pipeline/merge.py` na imagem `mediapipe-leo-mp` (gera o CSV final)
+
+### Modo manual (passo a passo, apenas Anaconda)
 
 Se preferir o controle manual, ainda eh possivel ativar cada ambiente na mao:
 
@@ -110,7 +171,7 @@ Possiveis configuracoes na hora de executar.
 - Ajustar a confianca apenas em caso de falhas de deteccao
 - Diminuir a altura e largura caso esteja muito lento o processamento (existe risco de perda de precisao)
 
-#### Via `run_pipeline.py` (modo automatico):
+#### Via `run_pipeline.py` (Anaconda):
 
 ```bash
 python run_pipeline.py --input videos/video.mp4 \
@@ -124,6 +185,20 @@ python run_pipeline.py --input videos/video.mp4 \
     --no-cache
 ```
 
+#### Via `run_docker.py` (Docker):
+
+```bash
+python scripts/run_docker.py --input videos/video.mp4 \
+    --mp-complexity 2 \
+    --min_det 0.6 \
+    --min_trk 0.6 \
+    --width 1280 --height 720 \
+    --wx-model medium \
+    --lang en \
+    --no-cache \
+    --gpu
+```
+
 | Argumento | Afeta | Descricao |
 | :--- | :--- | :--- |
 | `--input` | Todos | Caminho do video de entrada (obrigatorio) |
@@ -131,10 +206,12 @@ python run_pipeline.py --input videos/video.mp4 \
 | `--min_det` | extract.py | Confianca minima de deteccao (0.0-1.0) |
 | `--min_trk` | extract.py | Confianca minima de rastreamento entre frames |
 | `--width` / `--height` | extract.py | Reduza se o processamento estiver lento |
-| `--draw` | extract.py | Abre uma janela com os landmarks desenhados |
+| `--draw` | extract.py | Abre uma janela com os landmarks desenhados *(apenas Anaconda)* |
 | `--wx-model` | transcribe.py | `base`, `small`, `medium`, `large-v2` |
 | `--lang` | transcribe.py | Idioma do audio (ex: `pt`, `en`) |
 | `--no-cache` | merge.py | Remove arquivos intermediarios ao final |
+| `--gpu` | transcribe.py | Habilita GPU NVIDIA *(apenas Docker)* |
+| `--rebuild` | Docker | Forca reconstrucao das imagens Docker *(apenas Docker)* |
 
 #### Via scripts individuais (modo manual):
 

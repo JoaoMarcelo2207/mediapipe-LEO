@@ -15,10 +15,11 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPTS_DIR.parent
+ENVS_DIR = PROJECT_DIR / "environments"
 
 ENVS = {
-    "mediapipe_env": SCRIPTS_DIR / "environment_mediapipe.yml",
-    "whisperx_env": SCRIPTS_DIR / "environment_whisperx.yml",
+    "mediapipe_env": ENVS_DIR / "environment_mediapipe.yml",
+    "whisperx_env": ENVS_DIR / "environment_whisperx.yml",
 }
 
 
