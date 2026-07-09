@@ -118,7 +118,7 @@ def join_multimodal_data(arq_visao, arq_acustica, arq_texto, saida_csv="data/dat
 
     # --- Inserir Texto (WhisperX) ---
     print("6. Inserindo as palavras do WhisperX...")
-    df_final['palavra'] = "SILENCIO"
+    df_final['palavra'] = "*"
 
     try:
         with open(arq_texto, 'r', encoding='utf-8') as f:
