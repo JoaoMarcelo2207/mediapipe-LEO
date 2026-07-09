@@ -1,7 +1,6 @@
 import cv2
 import csv
 import queue
-import argparse
 import threading
 import mediapipe as mp
 from pathlib import Path
@@ -60,35 +59,24 @@ def extract_landmarks(results):
     rh = [v for lm in results.right_hand_landmarks.landmark for v in (lm.x, lm.y, lm.z)] if results.right_hand_landmarks else [None]*63
     return face + pose + lh + rh
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=str, required=True, help="Caminho do vídeo")
-    parser.add_argument("--output", type=str, default="holistic_landmarks_video_file_results.csv")
-    parser.add_argument("--complexity", type=int, default=1, help="Complexidade do modelo: 0 (lite), 1 (normal) ou 2 (slow)")
-    parser.add_argument("--min_det", type=float, default=0.5, help="Confiança mínima para detecção")
-    parser.add_argument("--min_trk", type=float, default=0.5, help="Confiança mínima para rastreamento")
-    parser.add_argument("--width", type=int, default=None, help="Largura do vídeo para processamento(Se não informado usa original do video)")
-    parser.add_argument("--height", type=int, default=None, help="Altura do vídeo para processamento(Se não informado usa original do video)")
-    parser.add_argument("--draw", action="store_true", help="Desenhar landmarks no vídeo")
+def extract_holistic_landmarks(input_path, output_path, complexity=1, min_det=0.5, min_trk=0.5, width=None, height=None, draw=False):
 
-    args = parser.parse_args()
-
-    video_path = Path(args.input)
+    video_path = Path(input_path)
     if not video_path.exists():
-        print(f"[ERRO] Vídeo não encontrado: {args.input}")
+        print(f"[ERRO] Vídeo não encontrado: {input_path}")
         return
 
-    cap = cv2.VideoCapture(args.input)
+    cap = cv2.VideoCapture(input_path)
     fps_video = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     
     # Setup CSV
     row_queue = queue.Queue()
-    writer_thread = threading.Thread(target=csv_writer_thread, args=(Path(args.output), build_csv_header(), row_queue))
+    writer_thread = threading.Thread(target=csv_writer_thread, args=(Path(output_path), build_csv_header(), row_queue))
     writer_thread.start()
 
     win_name = "Processando Vídeo..."
-    if args.draw:
+    if draw:
         cv2.namedWindow(win_name, cv2.WINDOW_NORMAL)
 
         orig_w = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -102,11 +90,13 @@ def main():
             target_height = int(orig_h)
     
         cv2.resizeWindow(win_name, target_width, target_height)
+    
+
     try:
         with mp_holistic.Holistic(
-            model_complexity=args.complexity,
-            min_detection_confidence=args.min_det,
-            min_tracking_confidence=args.min_trk,
+            model_complexity=complexity,
+            min_detection_confidence=min_det,
+            min_tracking_confidence=min_trk,
             refine_face_landmarks=False
         ) as holistic:
             
@@ -115,8 +105,8 @@ def main():
                 ret, frame = cap.read()
                 if not ret: break # Fim do vídeo
 
-                if args.width is not None and args.height is not None:
-                    frame = cv2.resize(frame, (args.width, args.height))
+                if width is not None and height is not None:
+                    frame = cv2.resize(frame, (width, height))
                 
                 # Processamento
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -129,7 +119,7 @@ def main():
                 row = [frame_idx, round(timestamp_ms, 2)] + extract_landmarks(results)
                 row_queue.put(row)
 
-                if args.draw:
+                if draw:
                     # Desenha a cada 2 frames para economizar CPU, mas processa TODOS
                     if frame_idx % 2 == 0: 
                         if results.face_landmarks:
@@ -156,22 +146,19 @@ def main():
                 else:
                     # Atualiza a barra de progresso a cada 5 frames
                     if frame_idx % 5 == 0 or frame_idx == total_frames - 1:
-                        percent = frame_idx / total_frames
+                        percent = min((frame_idx + 1) / total_frames, 1.0)
                         bar_length = 40
                         filled = int(bar_length * percent)
                         bar = '█' * filled + '-' * (bar_length - filled)
                         # O flush=True garante que o terminal atualize a linha imediatamente
-                        print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx}/{total_frames})", end="", flush=True)
+                        print(f"\rProcessando Vídeo: |{bar}| {percent*100:.1f}% ({frame_idx + 1}/{total_frames})", end="", flush=True)
 
                 frame_idx += 1
-                
+        
     finally:
         cap.release()
         cv2.destroyAllWindows()
         
         row_queue.put(_STOP)
         writer_thread.join()
-        print(f"\n[OK] Processamento concluído: {frame_idx} frames salvos em {args.output}")
-
-if __name__ == "__main__":
-    main()
+        print(f"\n[OK] Processamento concluído: {frame_idx} frames salvos em {output_path}")
