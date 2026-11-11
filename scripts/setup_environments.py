@@ -11,7 +11,9 @@ E seguro rodar mais de uma vez: ambientes ja existentes sao pulados.
 
 import subprocess
 import sys
+import shutil
 from pathlib import Path
+
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPTS_DIR.parent
@@ -38,6 +40,18 @@ def get_existing_envs():
 
 def setup_ffmpeg():
     """Garante que o ffmpeg standalone esteja disponivel na raiz do projeto."""
+    # macOS
+    if sys.platform == "darwin":
+        ffmpeg_path = shutil.which("ffmpeg")
+
+        if ffmpeg_path is None:
+            print("[ERRO] FFmpeg nao encontrado.")
+            print("Instale o Homebrew e execute: brew install ffmpeg")
+            sys.exit(1)
+
+        print(f"[OK] FFmpeg encontrado: {ffmpeg_path}")
+        return
+    
     ffmpeg_path = PROJECT_DIR / "ffmpeg.exe"
     if ffmpeg_path.exists():
         print("[OK] FFmpeg standalone ja esta disponivel.")
