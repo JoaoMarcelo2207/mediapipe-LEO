@@ -19,8 +19,13 @@ SCRIPTS_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPTS_DIR.parent
 ENVS_DIR = PROJECT_DIR / "environments"
 
+if sys.platform == "darwin":
+    mediapipe_yml = ENVS_DIR / "environment_mediapipe_macOS.yml"
+else:
+    mediapipe_yml = ENVS_DIR / "environment_mediapipe.yml"
+
 ENVS = {
-    "mediapipe_env": ENVS_DIR / "environment_mediapipe.yml",
+    "mediapipe_env": mediapipe_yml,
     "whisperx_env": ENVS_DIR / "environment_whisperx.yml",
 }
 
