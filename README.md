@@ -45,7 +45,7 @@ Escolha **uma** das opcoes abaixo:
 
 ---
 
-### Opcao 1: Anaconda (recomendado para Windows)
+### Opcao 1: Anaconda (Windows)
 
 #### 1. Instale o Miniconda
 
@@ -86,6 +86,33 @@ conda env remove -n mediapipe_env
 
 ---
 
+### Opcao 2: Anaconda (macOS)
+
+#### 1. Instale o Miniconda
+Baixe a versão correspondente ao processador do seu Mac e siga as instruções de instalação.
+
+#### 2. Instale o Homebrew
+Abra o Terminal e execute:
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+#### 3. Instale o FFmpeg
+No Terminal, execute:
+```bash
+brew install ffmpeg
+```
+#### 4. Abra o Terminal na pasta do projeto e ative o conda
+Entre na pasta onde você extraiu o projeto. Uma maneira fácil é digitar cd  no Terminal e arrastar a pasta do projeto para dentro dele. Depois, aperte Enter.
+Então:
+```bash
+conda activate base
+```
+#### 5. Configure os ambientes automaticamente
+Execute:
+```bash
+python scripts/setup_environments.py
+```
+---
 ### Opcao 2: Docker
 
 #### Pre-requisitos
